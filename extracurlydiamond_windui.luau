@@ -188,7 +188,7 @@ Tabs.Dig:Section({ Title = "Method 2 - Event Fire" })
 
 Tabs.Dig:Toggle({
     Title = "Auto Dig (Events)",
-    Default = false,
+    Value = false,
     Callback = function(val)
         autoDigEventMethod = val
         if val then
@@ -217,10 +217,12 @@ Tabs.Dig:Toggle({
 
 Tabs.Dig:Slider({
     Title = "Event Loop Delay (s)",
-    Min = 0.1,
-    Max = 1,
-    Default = 0.5,
-    Decimals = 1,
+    Step = 0.1,
+    Value = {
+        Min = 0.1,
+        Max = 1,
+        Default = 0.5,
+    },
     Callback = function(val)
         eventDelay = val
     end
@@ -230,7 +232,7 @@ Tabs.Dig:Section({ Title = "Method 3 - Targeted Dig" })
 
 Tabs.Dig:Toggle({
     Title = "Target: Legendary",
-    Default = false,
+    Value = false,
     Callback = function(val)
         targetRarities["Legendary"] = val
     end
@@ -238,7 +240,7 @@ Tabs.Dig:Toggle({
 
 Tabs.Dig:Toggle({
     Title = "Target: Mythic",
-    Default = false,
+    Value = false,
     Callback = function(val)
         targetRarities["Mythic"] = val
     end
@@ -246,7 +248,7 @@ Tabs.Dig:Toggle({
 
 Tabs.Dig:Toggle({
     Title = "Target: Exotic",
-    Default = false,
+    Value = false,
     Callback = function(val)
         targetRarities["Exotic"] = val
     end
@@ -254,10 +256,12 @@ Tabs.Dig:Toggle({
 
 Tabs.Dig:Slider({
     Title = "Worker Count",
-    Min = 1,
-    Max = 10,
-    Default = 3,
-    Decimals = 0,
+    Step = 1,
+    Value = {
+        Min = 1,
+        Max = 10,
+        Default = 3,
+    },
     Callback = function(val)
         workerCount = val
     end
@@ -265,7 +269,7 @@ Tabs.Dig:Slider({
 
 Tabs.Dig:Toggle({
     Title = "Targeted Dig",
-    Default = false,
+    Value = false,
     Callback = function(val)
         autoTargetDig = val
         if val then
@@ -282,7 +286,7 @@ Tabs.Sell:Section({ Title = "Auto Sell" })
 
 Tabs.Sell:Toggle({
     Title = "Auto Sell",
-    Default = false,
+    Value = false,
     Callback = function(val)
         autoSell = val
         if val then
@@ -300,10 +304,12 @@ Tabs.Sell:Toggle({
 
 Tabs.Sell:Slider({
     Title = "Sell Delay (s)",
-    Min = 10,
-    Max = 60,
-    Default = 30,
-    Decimals = 0,
+    Step = 5,
+    Value = {
+        Min = 10,
+        Max = 60,
+        Default = 30,
+    },
     Callback = function(val)
         sellDelay = val
     end
@@ -318,7 +324,7 @@ Tabs.Fav:Section({ Title = "Select Items to Favorite" })
 for _, fishName in pairs(fishList) do
     Tabs.Fav:Toggle({
         Title = fishName,
-        Default = false,
+        Value = false,
         Callback = function(val)
             favoritedItems[fishName] = val
         end
@@ -341,7 +347,7 @@ Tabs.Fav:Button({
 
 Tabs.Fav:Toggle({
     Title = "Auto Favorite on Backpack Change",
-    Default = false,
+    Value = false,
     Callback = function(val)
         if val then
             lp.Backpack.ChildAdded:Connect(function()
@@ -361,7 +367,7 @@ Tabs.FavW:Section({ Title = "Add Weight Filter" })
 Tabs.FavW:Dropdown({
     Title = "Select Item",
     Values = fishList,
-    Default = fishList[1],
+    Value = fishList[1],
     Callback = function(val)
         selectedWeightItem = val
     end
@@ -443,7 +449,7 @@ Tabs.FavW:Button({
 
 Tabs.FavW:Toggle({
     Title = "Auto Favorite by Weight on Backpack Change",
-    Default = false,
+    Value = false,
     Callback = function(val)
         if val then
             lp.Backpack.ChildAdded:Connect(function()
@@ -463,7 +469,7 @@ Tabs.Buy:Section({ Title = "Select Tool to Buy" })
 Tabs.Buy:Dropdown({
     Title = "Select Tool",
     Values = equipList,
-    Default = equipList[1],
+    Value = equipList[1],
     Callback = function(val)
         selectedBuyTool = val
     end
@@ -573,7 +579,7 @@ Tabs.Merchant:Button({
 
 Tabs.Merchant:Toggle({
     Title = "Auto Buy When Merchant Arrives",
-    Default = false,
+    Value = false,
     Callback = function(val)
         autoMerchant = val
         if val then
