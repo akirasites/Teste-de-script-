@@ -1,0 +1,522 @@
+--[[
+    obsidianUI - Premium UI Library (Demo Build)
+    Author: Gemini (AI) / Tom
+    Style: Dark, Elegant, Modern
+]]
+
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+-- Tenta colocar na CoreGui para evitar detecção/poluição, fallback para PlayerGui
+local ParentUI = nil
+pcall(function() ParentUI = CoreGui end)
+if not ParentUI then ParentUI = LocalPlayer.PlayerGui end
+
+-- ━━━━━━━━━━━━━━━━━━━━
+-- 🎨 THEME & UTILITY MANAGER
+-- ━━━━━━━━━━━━━━━━━━━━
+
+local Obsidian = {
+    Themes = {
+        Orange = { Accent = Color3.fromRGB(255, 120, 0), Bg = Color3.fromRGB(12, 12, 12), Container = Color3.fromRGB(18, 18, 18), Element = Color3.fromRGB(25, 25, 25), Text = Color3.fromRGB(240, 240, 240), Stroke = Color3.fromRGB(35, 35, 35) },
+        Red = { Accent = Color3.fromRGB(255, 65, 65), Bg = Color3.fromRGB(12, 12, 12), Container = Color3.fromRGB(18, 18, 18), Element = Color3.fromRGB(25, 25, 25), Text = Color3.fromRGB(240, 240, 240), Stroke = Color3.fromRGB(35, 35, 35) },
+        Purple = { Accent = Color3.fromRGB(160, 70, 255), Bg = Color3.fromRGB(12, 12, 12), Container = Color3.fromRGB(18, 18, 18), Element = Color3.fromRGB(25, 25, 25), Text = Color3.fromRGB(240, 240, 240), Stroke = Color3.fromRGB(35, 35, 35) },
+        Blue = { Accent = Color3.fromRGB(70, 160, 255), Bg = Color3.fromRGB(12, 12, 12), Container = Color3.fromRGB(18, 18, 18), Element = Color3.fromRGB(25, 25, 25), Text = Color3.fromRGB(240, 240, 240), Stroke = Color3.fromRGB(35, 35, 35) },
+        Green = { Accent = Color3.fromRGB(70, 255, 120), Bg = Color3.fromRGB(12, 12, 12), Container = Color3.fromRGB(18, 18, 18), Element = Color3.fromRGB(25, 25, 25), Text = Color3.fromRGB(240, 240, 240), Stroke = Color3.fromRGB(35, 35, 35) }
+    },
+    CurrentTheme = "Orange",
+    Registry = {}, -- Armazena elementos para trocar cor em tempo real
+    Toggled = true,
+    Keybind = Enum.KeyCode.RightControl
+}
+
+local Utility = {}
+
+function Utility:Create(className, properties)
+    local instance = Instance.new(className)
+    for k, v in pairs(properties) do instance[k] = v end
+    return instance
+end
+
+function Utility:Tween(instance, properties, duration, style)
+    duration = duration or 0.25
+    style = style or Enum.EasingStyle.Quart
+    local tweenInfo = TweenInfo.new(duration, style, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(instance, tweenInfo, properties)
+    tween:Play()
+    return tween
+end
+
+function Utility:RegisterTheme(instance, property, colorType)
+    table.insert(Obsidian.Registry, { Instance = instance, Property = property, Type = colorType })
+    instance[property] = Obsidian.Themes[Obsidian.CurrentTheme][colorType]
+end
+
+function Obsidian:SetTheme(themeName)
+    if self.Themes[themeName] then
+        self.CurrentTheme = themeName
+        self:UpdateColors()
+    end
+end
+
+function Obsidian:SetAccentColor(color)
+    self.Themes[self.CurrentTheme].Accent = color
+    self:UpdateColors()
+end
+
+function Obsidian:UpdateColors()
+    local theme = self.Themes[self.CurrentTheme]
+    for _, item in ipairs(self.Registry) do
+        if item.Instance and item.Instance.Parent then
+            Utility:Tween(item.Instance, { [item.Property] = theme[item.Type] }, 0.3)
+        end
+    end
+end
+
+-- ━━━━━━━━━━━━━━━━━━━━
+-- 🖥️ CORE LIBRARY
+-- ━━━━━━━━━━━━━━━━━━━━
+
+local Library = {}
+
+function Library:CreateWindow(options)
+    local WindowOptions = {
+        Title = options.Title or "obsidianUI",
+        Author = options.Author or "Author",
+        Theme = options.Theme or "Orange"
+    }
+
+    Obsidian.CurrentTheme = WindowOptions.Theme
+
+    local obsidianGui = Utility:Create("ScreenGui", { Name = "obsidianGui", Parent = ParentUI, IgnoreGuiInset = true })
+    
+    -- Blur Background
+    local Blur = Utility:Create("BlurEffect", { Parent = game.Lighting, Size = 0 })
+    Utility:Tween(Blur, { Size = 15 }, 0.5)
+
+    -- Main Window
+    local MainFrame = Utility:Create("Frame", { Name = "MainFrame", Parent = obsidianGui, Size = UDim2.new(0, 750, 0, 480), Position = UDim2.new(0.5, -375, 0.5, -240), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Bg, ClipsDescendants = true })
+    Utility:Create("UICorner", { Parent = MainFrame, CornerRadius = UDim.new(0, 8) })
+    Utility:RegisterTheme(MainFrame, "BackgroundColor3", "Bg")
+    
+    local MainStroke = Utility:Create("UIStroke", { Parent = MainFrame, Thickness = 1, Color = Obsidian.Themes[Obsidian.CurrentTheme].Stroke })
+    Utility:RegisterTheme(MainStroke, "Color", "Stroke")
+
+    -- Topbar (Drag System)
+    local Topbar = Utility:Create("Frame", { Name = "Topbar", Parent = MainFrame, Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1 })
+    local TitleLabel = Utility:Create("TextLabel", { Parent = Topbar, Size = UDim2.new(0.5, 0, 1, 0), Position = UDim2.new(0, 15, 0, 0), BackgroundTransparency = 1, Text = WindowOptions.Title, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text, TextXAlignment = Enum.TextXAlignment.Left })
+    Utility:RegisterTheme(TitleLabel, "TextColor3", "Text")
+    
+    -- Dragging Logic
+    local dragging, dragInput, dragStart, startPos
+    Topbar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = MainFrame.Position
+            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+        end
+    end)
+    Topbar.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            Utility:Tween(MainFrame, {Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)}, 0.08, Enum.EasingStyle.Linear)
+        end
+    end)
+
+    -- Toggle UI System
+    UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if input.KeyCode == Obsidian.Keybind then
+            Obsidian.Toggled = not Obsidian.Toggled
+            Utility:Tween(MainFrame, {Size = Obsidian.Toggled and UDim2.new(0, 750, 0, 480) or UDim2.new(0, 750, 0, 0)}, 0.4, Enum.EasingStyle.Exponential)
+            Utility:Tween(Blur, {Size = Obsidian.Toggled and 15 or 0}, 0.4)
+        end
+    end)
+
+    -- Layout Setup
+    local Sidebar = Utility:Create("Frame", { Parent = MainFrame, Size = UDim2.new(0, 200, 1, -40), Position = UDim2.new(0, 0, 0, 40), BackgroundTransparency = 1 })
+    local SidebarLayout = Utility:Create("UIListLayout", { Parent = Sidebar, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center })
+    local SidebarPadding = Utility:Create("UIPadding", { Parent = Sidebar, PaddingTop = UDim.new(0, 5) })
+    
+    local ContentContainer = Utility:Create("Frame", { Parent = MainFrame, Size = UDim2.new(1, -210, 1, -50), Position = UDim2.new(0, 205, 0, 40), BackgroundTransparency = 1 })
+
+    -- Notification Container
+    local NotifContainer = Utility:Create("Frame", { Parent = obsidianGui, Size = UDim2.new(0, 300, 1, -20), Position = UDim2.new(1, -320, 0, 10), BackgroundTransparency = 1 })
+    local NotifLayout = Utility:Create("UIListLayout", { Parent = NotifContainer, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 10), VerticalAlignment = Enum.VerticalAlignment.Bottom })
+
+    local WindowClass = { Tabs = {}, CurrentTab = nil }
+
+    -- 🔔 Notification System
+    function WindowClass:Notify(options)
+        local title = options.Title or "Notification"
+        local text = options.Content or ""
+        local duration = options.Duration or 3
+
+        local NotifFrame = Utility:Create("Frame", { Parent = NotifContainer, Size = UDim2.new(1, 50, 0, 70), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Container, BackgroundTransparency = 1 })
+        Utility:Create("UICorner", { Parent = NotifFrame, CornerRadius = UDim.new(0, 6) })
+        local NotifStroke = Utility:Create("UIStroke", { Parent = NotifFrame, Thickness = 1, Color = Obsidian.Themes[Obsidian.CurrentTheme].Accent, Transparency = 1 })
+        Utility:RegisterTheme(NotifStroke, "Color", "Accent")
+
+        local TitleLbl = Utility:Create("TextLabel", { Parent = NotifFrame, Size = UDim2.new(1, -20, 0, 25), Position = UDim2.new(0, 10, 0, 5), BackgroundTransparency = 1, Text = title, Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Accent, TextXAlignment = Enum.TextXAlignment.Left, TextTransparency = 1 })
+        Utility:RegisterTheme(TitleLbl, "TextColor3", "Accent")
+        local DescLbl = Utility:Create("TextLabel", { Parent = NotifFrame, Size = UDim2.new(1, -20, 1, -30), Position = UDim2.new(0, 10, 0, 25), BackgroundTransparency = 1, Text = text, Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, TextTransparency = 1 })
+        Utility:RegisterTheme(DescLbl, "TextColor3", "Text")
+
+        -- Enter Anim
+        Utility:Tween(NotifFrame, {Size = UDim2.new(1, 0, 0, 70), BackgroundTransparency = 0}, 0.3)
+        Utility:Tween(NotifStroke, {Transparency = 0}, 0.3)
+        Utility:Tween(TitleLbl, {TextTransparency = 0}, 0.3)
+        Utility:Tween(DescLbl, {TextTransparency = 0}, 0.3)
+
+        task.spawn(function()
+            task.wait(duration)
+            Utility:Tween(NotifFrame, {Size = UDim2.new(1, 50, 0, 70), BackgroundTransparency = 1}, 0.3)
+            Utility:Tween(NotifStroke, {Transparency = 1}, 0.3)
+            Utility:Tween(TitleLbl, {TextTransparency = 1}, 0.3)
+            Utility:Tween(DescLbl, {TextTransparency = 1}, 0.3)
+            task.wait(0.3)
+            NotifFrame:Destroy()
+        end)
+    end
+
+    -- 📑 Tab System
+    function WindowClass:CreateTab(tabName)
+        local TabBtn = Utility:Create("TextButton", { Parent = Sidebar, Size = UDim2.new(1, -20, 0, 35), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Element, Text = tabName, Font = Enum.Font.GothamMedium, TextSize = 14, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text, AutoButtonColor = false })
+        Utility:Create("UICorner", { Parent = TabBtn, CornerRadius = UDim.new(0, 6) })
+        Utility:RegisterTheme(TabBtn, "BackgroundColor3", "Element")
+        Utility:RegisterTheme(TabBtn, "TextColor3", "Text")
+
+        local TabContent = Utility:Create("ScrollingFrame", { Parent = ContentContainer, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ScrollBarThickness = 2, Visible = false })
+        local ContentLayout = Utility:Create("UIListLayout", { Parent = TabContent, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8) })
+        Utility:Create("UIPadding", { Parent = TabContent, PaddingTop = UDim.new(0, 5), PaddingRight = UDim.new(0, 10) })
+
+        ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() TabContent.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 20) end)
+
+        if not self.CurrentTab then
+            self.CurrentTab = TabContent
+            TabContent.Visible = true
+            Utility:Tween(TabBtn, { BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Accent }, 0.2)
+        end
+
+        TabBtn.MouseButton1Click:Connect(function()
+            for _, t in pairs(self.Tabs) do
+                t.Content.Visible = false
+                Utility:Tween(t.Btn, { BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Element }, 0.2)
+            end
+            TabContent.Visible = true
+            Utility:Tween(TabBtn, { BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Accent }, 0.2)
+        end)
+
+        local TabObj = { Btn = TabBtn, Content = TabContent }
+        table.insert(self.Tabs, TabObj)
+
+        local SectionClass = {}
+
+        -- 📂 Section System
+        function SectionClass:CreateSection(sectionName)
+            local SecFrame = Utility:Create("Frame", { Parent = TabContent, Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Container })
+            Utility:Create("UICorner", { Parent = SecFrame, CornerRadius = UDim.new(0, 6) })
+            Utility:RegisterTheme(SecFrame, "BackgroundColor3", "Container")
+            local SecStroke = Utility:Create("UIStroke", { Parent = SecFrame, Thickness = 1, Color = Obsidian.Themes[Obsidian.CurrentTheme].Stroke })
+            Utility:RegisterTheme(SecStroke, "Color", "Stroke")
+
+            local SecLabel = Utility:Create("TextLabel", { Parent = SecFrame, Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = sectionName, Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Accent, TextXAlignment = Enum.TextXAlignment.Left })
+            Utility:RegisterTheme(SecLabel, "TextColor3", "Accent")
+
+            local SecItems = Utility:Create("Frame", { Parent = SecFrame, Size = UDim2.new(1, 0, 0, 0), Position = UDim2.new(0, 0, 0, 35), BackgroundTransparency = 1 })
+            local SecLayout = Utility:Create("UIListLayout", { Parent = SecItems, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6) })
+            Utility:Create("UIPadding", { Parent = SecItems, PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) })
+
+            local function UpdateSectionSize()
+                SecFrame.Size = UDim2.new(1, 0, 0, 45 + SecLayout.AbsoluteContentSize.Y)
+            end
+            SecLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateSectionSize)
+
+            local Elements = {}
+
+            -- 🟩 COMPONENT: Button
+            function Elements:CreateButton(props)
+                local Btn = Utility:Create("TextButton", { Parent = SecItems, Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Element, Text = props.Name, Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text, AutoButtonColor = false })
+                Utility:Create("UICorner", { Parent = Btn, CornerRadius = UDim.new(0, 4) })
+                Utility:RegisterTheme(Btn, "BackgroundColor3", "Element")
+                Utility:RegisterTheme(Btn, "TextColor3", "Text")
+                local Stroke = Utility:Create("UIStroke", { Parent = Btn, Thickness = 1, Color = Obsidian.Themes[Obsidian.CurrentTheme].Stroke })
+                Utility:RegisterTheme(Stroke, "Color", "Stroke")
+
+                Btn.MouseEnter:Connect(function() Utility:Tween(Btn, {BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Stroke}, 0.2) end)
+                Btn.MouseLeave:Connect(function() Utility:Tween(Btn, {BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Element}, 0.2) end)
+                Btn.MouseButton1Click:Connect(function()
+                    Utility:Tween(Btn, {Size = UDim2.new(1, -4, 0, 33)}, 0.1)
+                    task.wait(0.1)
+                    Utility:Tween(Btn, {Size = UDim2.new(1, 0, 0, 35)}, 0.1)
+                    if props.Callback then props.Callback() end
+                end)
+            end
+
+            -- 🟩 COMPONENT: Toggle
+            function Elements:CreateToggle(props)
+                local State = props.Default or false
+                local Tgl = Utility:Create("TextButton", { Parent = SecItems, Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Element, Text = "", AutoButtonColor = false })
+                Utility:Create("UICorner", { Parent = Tgl, CornerRadius = UDim.new(0, 4) })
+                Utility:RegisterTheme(Tgl, "BackgroundColor3", "Element")
+                
+                local Lbl = Utility:Create("TextLabel", { Parent = Tgl, Size = UDim2.new(1, -60, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = props.Name, Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text, TextXAlignment = Enum.TextXAlignment.Left })
+                Utility:RegisterTheme(Lbl, "TextColor3", "Text")
+
+                local SwitchBg = Utility:Create("Frame", { Parent = Tgl, Size = UDim2.new(0, 40, 0, 20), Position = UDim2.new(1, -50, 0.5, -10), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Stroke })
+                Utility:Create("UICorner", { Parent = SwitchBg, CornerRadius = UDim.new(1, 0) })
+                local SwitchCircle = Utility:Create("Frame", { Parent = SwitchBg, Size = UDim2.new(0, 16, 0, 16), Position = State and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8), BackgroundColor3 = Color3.fromRGB(255, 255, 255) })
+                Utility:Create("UICorner", { Parent = SwitchCircle, CornerRadius = UDim.new(1, 0) })
+
+                if State then SwitchBg.BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Accent end
+
+                Tgl.MouseButton1Click:Connect(function()
+                    State = not State
+                    Utility:Tween(SwitchCircle, {Position = State and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)}, 0.2, Enum.EasingStyle.Back)
+                    Utility:Tween(SwitchBg, {BackgroundColor3 = State and Obsidian.Themes[Obsidian.CurrentTheme].Accent or Obsidian.Themes[Obsidian.CurrentTheme].Stroke}, 0.2)
+                    if props.Callback then props.Callback(State) end
+                end)
+            end
+
+            -- 🟩 COMPONENT: Slider
+            function Elements:CreateSlider(props)
+                local Value = props.Default or props.Min
+                local SldFrame = Utility:Create("Frame", { Parent = SecItems, Size = UDim2.new(1, 0, 0, 50), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Element })
+                Utility:Create("UICorner", { Parent = SldFrame, CornerRadius = UDim.new(0, 4) })
+                Utility:RegisterTheme(SldFrame, "BackgroundColor3", "Element")
+
+                local Lbl = Utility:Create("TextLabel", { Parent = SldFrame, Size = UDim2.new(1, -20, 0, 25), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = props.Name, Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text, TextXAlignment = Enum.TextXAlignment.Left })
+                Utility:RegisterTheme(Lbl, "TextColor3", "Text")
+                local ValLbl = Utility:Create("TextLabel", { Parent = SldFrame, Size = UDim2.new(1, -20, 0, 25), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = tostring(Value), Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Accent, TextXAlignment = Enum.TextXAlignment.Right })
+                Utility:RegisterTheme(ValLbl, "TextColor3", "Accent")
+
+                local Track = Utility:Create("TextButton", { Parent = SldFrame, Size = UDim2.new(1, -20, 0, 6), Position = UDim2.new(0, 10, 0, 32), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Stroke, Text = "", AutoButtonColor = false })
+                Utility:Create("UICorner", { Parent = Track, CornerRadius = UDim.new(1, 0) })
+                Utility:RegisterTheme(Track, "BackgroundColor3", "Stroke")
+
+                local Fill = Utility:Create("Frame", { Parent = Track, Size = UDim2.new((Value - props.Min)/(props.Max - props.Min), 0, 1, 0), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Accent })
+                Utility:Create("UICorner", { Parent = Fill, CornerRadius = UDim.new(1, 0) })
+                Utility:RegisterTheme(Fill, "BackgroundColor3", "Accent")
+
+                local sliding = false
+                Track.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then sliding = true end
+                end)
+                UserInputService.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then sliding = false end
+                end)
+                UserInputService.InputChanged:Connect(function(input)
+                    if sliding and input.UserInputType == Enum.UserInputType.MouseMovement then
+                        local pct = math.clamp((input.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
+                        Value = math.floor(props.Min + (props.Max - props.Min) * pct)
+                        ValLbl.Text = tostring(Value)
+                        Utility:Tween(Fill, {Size = UDim2.new(pct, 0, 1, 0)}, 0.1)
+                        if props.Callback then props.Callback(Value) end
+                    end
+                end)
+            end
+
+            -- 🟩 COMPONENT: Dropdown
+            function Elements:CreateDropdown(props)
+                local Open = false
+                local DdFrame = Utility:Create("Frame", { Parent = SecItems, Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Element, ClipsDescendants = true })
+                Utility:Create("UICorner", { Parent = DdFrame, CornerRadius = UDim.new(0, 4) })
+                Utility:RegisterTheme(DdFrame, "BackgroundColor3", "Element")
+                
+                local Header = Utility:Create("TextButton", { Parent = DdFrame, Size = UDim2.new(1, 0, 0, 35), BackgroundTransparency = 1, Text = "", AutoButtonColor = false })
+                local Lbl = Utility:Create("TextLabel", { Parent = Header, Size = UDim2.new(1, -20, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = props.Name .. " : " .. (props.Default or "None"), Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text, TextXAlignment = Enum.TextXAlignment.Left })
+                Utility:RegisterTheme(Lbl, "TextColor3", "Text")
+                local Icon = Utility:Create("TextLabel", { Parent = Header, Size = UDim2.new(0, 20, 1, 0), Position = UDim2.new(1, -30, 0, 0), BackgroundTransparency = 1, Text = "+", Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text })
+
+                local List = Utility:Create("Frame", { Parent = DdFrame, Size = UDim2.new(1, 0, 1, -35), Position = UDim2.new(0, 0, 0, 35), BackgroundTransparency = 1 })
+                local ListLayout = Utility:Create("UIListLayout", { Parent = List, SortOrder = Enum.SortOrder.LayoutOrder })
+
+                local function ToggleDD()
+                    Open = not Open
+                    Icon.Text = Open and "-" or "+"
+                    local targetSize = Open and 35 + (#props.Options * 30) or 35
+                    Utility:Tween(DdFrame, {Size = UDim2.new(1, 0, 0, targetSize)}, 0.3, Enum.EasingStyle.Back)
+                end
+
+                Header.MouseButton1Click:Connect(ToggleDD)
+
+                for _, opt in ipairs(props.Options) do
+                    local OptBtn = Utility:Create("TextButton", { Parent = List, Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, Text = "  " .. opt, Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text, TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false })
+                    Utility:RegisterTheme(OptBtn, "TextColor3", "Text")
+                    OptBtn.MouseEnter:Connect(function() Utility:Tween(OptBtn, {BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Stroke, BackgroundTransparency = 0}, 0.2) end)
+                    OptBtn.MouseLeave:Connect(function() Utility:Tween(OptBtn, {BackgroundTransparency = 1}, 0.2) end)
+                    OptBtn.MouseButton1Click:Connect(function()
+                        Lbl.Text = props.Name .. " : " .. opt
+                        ToggleDD()
+                        if props.Callback then props.Callback(opt) end
+                    end)
+                end
+            end
+            
+            -- 🟩 COMPONENT: Color Picker (Simple RGB Slider version due to constraint, highly functional)
+            function Elements:CreateColorPicker(props)
+                local CpFrame = Utility:Create("Frame", { Parent = SecItems, Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Element, ClipsDescendants = true })
+                Utility:Create("UICorner", { Parent = CpFrame, CornerRadius = UDim.new(0, 4) })
+                Utility:RegisterTheme(CpFrame, "BackgroundColor3", "Element")
+                
+                local Header = Utility:Create("TextButton", { Parent = CpFrame, Size = UDim2.new(1, 0, 0, 35), BackgroundTransparency = 1, Text = "", AutoButtonColor = false })
+                local Lbl = Utility:Create("TextLabel", { Parent = Header, Size = UDim2.new(1, -20, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = props.Name, Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text, TextXAlignment = Enum.TextXAlignment.Left })
+                
+                local Preview = Utility:Create("Frame", { Parent = Header, Size = UDim2.new(0, 40, 0, 16), Position = UDim2.new(1, -50, 0.5, -8), BackgroundColor3 = props.Default or Color3.fromRGB(255,255,255) })
+                Utility:Create("UICorner", { Parent = Preview, CornerRadius = UDim.new(0, 4) })
+                
+                local Open = false
+                Header.MouseButton1Click:Connect(function()
+                    Open = not Open
+                    Utility:Tween(CpFrame, {Size = UDim2.new(1, 0, 0, Open and 130 or 35)}, 0.3, Enum.EasingStyle.Back)
+                end)
+
+                -- Hue Slider
+                local HueBg = Utility:Create("Frame", { Parent = CpFrame, Size = UDim2.new(1, -20, 0, 10), Position = UDim2.new(0, 10, 0, 50), BackgroundColor3 = Color3.fromRGB(255,255,255) })
+                Utility:Create("UICorner", { Parent = HueBg, CornerRadius = UDim.new(1, 0) })
+                local UIGradient = Utility:Create("UIGradient", { Parent = HueBg, Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)), ColorSequenceKeypoint.new(0.16, Color3.fromRGB(255,255,0)), ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0,255,0)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0,255,255)), ColorSequenceKeypoint.new(0.66, Color3.fromRGB(0,0,255)), ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255,0,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0))}) })
+                
+                local HuePick = Utility:Create("Frame", { Parent = HueBg, Size = UDim2.new(0, 4, 1, 4), Position = UDim2.new(0, 0, 0, -2), BackgroundColor3 = Color3.fromRGB(255,255,255) })
+                
+                -- Simulate picking hue
+                local sliding = false
+                HueBg.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then sliding = true end end)
+                UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then sliding = false end end)
+                UserInputService.InputChanged:Connect(function(input)
+                    if sliding and input.UserInputType == Enum.UserInputType.MouseMovement then
+                        local pct = math.clamp((input.Position.X - HueBg.AbsolutePosition.X) / HueBg.AbsoluteSize.X, 0, 1)
+                        HuePick.Position = UDim2.new(pct, 0, 0, -2)
+                        local color = Color3.fromHSV(pct, 1, 1)
+                        Preview.BackgroundColor3 = color
+                        if props.Callback then props.Callback(color) end
+                    end
+                end)
+            end
+
+            -- 🟩 COMPONENT: Keybind
+            function Elements:CreateKeybind(props)
+                local KbFrame = Utility:Create("Frame", { Parent = SecItems, Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Element })
+                Utility:Create("UICorner", { Parent = KbFrame, CornerRadius = UDim.new(0, 4) })
+                Utility:RegisterTheme(KbFrame, "BackgroundColor3", "Element")
+                
+                local Lbl = Utility:Create("TextLabel", { Parent = KbFrame, Size = UDim2.new(1, -100, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = props.Name, Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text, TextXAlignment = Enum.TextXAlignment.Left })
+                Utility:RegisterTheme(Lbl, "TextColor3", "Text")
+                
+                local Btn = Utility:Create("TextButton", { Parent = KbFrame, Size = UDim2.new(0, 80, 0, 25), Position = UDim2.new(1, -90, 0.5, -12.5), BackgroundColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Stroke, Text = props.Default.Name, Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = Obsidian.Themes[Obsidian.CurrentTheme].Text, AutoButtonColor = false })
+                Utility:Create("UICorner", { Parent = Btn, CornerRadius = UDim.new(0, 4) })
+                Utility:RegisterTheme(Btn, "BackgroundColor3", "Stroke")
+                
+                local key = props.Default
+                local mapping = false
+                Btn.MouseButton1Click:Connect(function()
+                    Btn.Text = "..."
+                    mapping = true
+                end)
+                UserInputService.InputBegan:Connect(function(input)
+                    if mapping and input.UserInputType == Enum.UserInputType.Keyboard then
+                        key = input.KeyCode
+                        Btn.Text = key.Name
+                        mapping = false
+                    elseif not mapping and input.KeyCode == key then
+                        if props.Callback then props.Callback(key) end
+                    end
+                end)
+            end
+
+            return Elements
+        end
+
+        return SectionClass
+    end
+
+    return WindowClass
+end
+
+-- ━━━━━━━━━━━━━━━━━━━━
+-- 🚀 API USAGE (EXEMPLO DE INICIALIZAÇÃO)
+-- ━━━━━━━━━━━━━━━━━━━━
+
+local Window = Library:CreateWindow({
+    Title = "obsidian Hub",
+    Author = "Tom",
+    Theme = "Orange" -- Troque para Red, Blue, Purple ou Green
+})
+
+-- Notificação de Boas-vindas
+Window:Notify({
+    Title = "Sistema Iniciado",
+    Content = "Bem-vindo à versão preview do obsidianUI.",
+    Duration = 5
+})
+
+-- Aba Principal
+local Tab = Window:CreateTab("Main")
+
+-- Sessão Combat
+local CombatSec = Tab:CreateSection("Combat Settings")
+
+CombatSec:CreateToggle({
+    Name = "Aimbot Assist",
+    Default = true,
+    Callback = function(Value)
+        print("Aimbot:", Value)
+    end
+})
+
+CombatSec:CreateSlider({
+    Name = "FOV Radius",
+    Min = 0,
+    Max = 360,
+    Default = 90,
+    Callback = function(Value)
+        print("FOV:", Value)
+    end
+})
+
+-- Sessão Visuals
+local VisualSec = Tab:CreateSection("Visuals")
+
+VisualSec:CreateDropdown({
+    Name = "ESP Mode",
+    Options = {"Boxes", "Chams", "Skeleton", "Off"},
+    Default = "Boxes",
+    Callback = function(Value)
+        print("ESP:", Value)
+    end
+})
+
+VisualSec:CreateButton({
+    Name = "Execute Script",
+    Callback = function()
+        Window:Notify({Title = "Sucesso", Content = "Script executado sem erros.", Duration = 3})
+    end
+})
+
+-- Aba Configurações (Demonstração da Accent Color em tempo real)
+local ConfigTab = Window:CreateTab("Settings")
+local ThemeSec = ConfigTab:CreateSection("Theme Customization")
+
+ThemeSec:CreateColorPicker({
+    Name = "Accent Color (Real-time)",
+    Default = Color3.fromRGB(255, 120, 0),
+    Callback = function(Color)
+        -- Atualiza todo o sistema visual dinamicamente! 😏🔥
+        Obsidian:SetAccentColor(Color) 
+    end
+})
+
+ThemeSec:CreateKeybind({
+    Name = "Toggle Menu",
+    Default = Enum.KeyCode.RightControl,
+    Callback = function(Key)
+        Obsidian.Keybind = Key
+    end
+})
